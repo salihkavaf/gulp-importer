@@ -37,7 +37,7 @@ gulp.task('import', () => {
 ```
 
 ### Watching Dependency
-Automatically execute imports for specific files when dependencies change. This saves you a lot of time from going through each file after a simple dependency change. So, we'll watch the resources that's supposed to be cached in the import step above. Why cached? Well, it's much more faster to run the imports once and cache a dependency tree instead of looking up through a whole file tree, right?!
+Automatically execute imports for specific files when dependencies change. This saves you a lot of time from going through each file after a simple dependency change. So, we'll watch the resources that's supposed to be cached in the import step above. Why cached? Well, it's much faster to run the imports once and cache a dependency tree rather than looking up through a whole file tree, right?!
 
 ```js
 gulp.task('import', () => {
