@@ -84,7 +84,6 @@ class Importer {
                 const list = that.resolveDependency(file.path);
                 list.forEach(ref => this.push(ref));
 
-                file.contents = file.contents.pipe(new PassThrough());
                 this.push(file);
                 cb();
             }
