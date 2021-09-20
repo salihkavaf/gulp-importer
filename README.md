@@ -11,7 +11,7 @@ npm install gulp-importer --save-dev
 
 ## Usage
 ### Execute Imports
-Here you execute the imports in your files. *gulp-importer* supports both buffering and streaming with custom encoding. See [Options](https://github.com/salihkavaf/gulp-importer/blob/main/README.md#options) for more configurations.
+Here you execute the imports in your files. *gulp-importer* supports both buffering and streaming with custom encoding. See [Options](https://github.com/salihkavaf/gulp-importer/blob/main/README.md#options) for detailed configuration.
 
 It's recommended that you also use a caching plugin like [gulp-cached](https://www.npmjs.com/package/gulp-cached) alongside *gulp-importer* to avoid unnecessarily repeat import execution.
 ```js
@@ -37,7 +37,7 @@ gulp.task('import', () => {
 ```
 
 ### Watching Dependency
-Automatically execute imports for specific files when dependencies change. This saves you a lot of time from going through each file after a simple dependency change. So, we'll watch the resources that's supposed to be cached in the import step above. Why cached? Well, it's much more faster to run the imports once and cache a dependency tree instead of looking up through a whole file tree, right?!
+Automatically execute imports for specific files when dependencies change. This saves you a lot of time from going through each file after a simple dependency change. So, we'll watch the resources that's supposed to be cached in the import step above. Why cached? Well, it's much faster to run the imports once and cache a dependency tree rather than looking up through a whole file tree, right?!
 
 ```js
 gulp.task('import', () => {
