@@ -3,8 +3,11 @@ import assert   from 'assert'
 import File     from 'vinyl'
 import fs       from 'fs'
 import es       from 'event-stream'
+import Path     from 'path'
 
+const libFile  = "test/res/lib.txt";
 const testFile = "test/res/src.txt";
+
 const expected = "This is the lib file!\r\nThis is the source file!";
 
 describe("gulp-importer", () => {
@@ -54,7 +57,7 @@ describe("gulp-importer", () => {
         });
     });
 
-    it("should ignore repeated imports", done => {
+    it("importOnce option should work", done => {
         const content = '@import "./lib.txt"\r\n' +
             '@import "./lib.txt"\r\n' +
             'This is dump file';
@@ -74,5 +77,14 @@ describe("gulp-importer", () => {
             assert.equal(matches.length, 1, "Not ignoring repeated imports!");
             done();
         });
+    });
+
+    it("should cache dependency destinations", done => {
+        const path   = Path.resolve(libFile);
+        const base64 = Buffer.from(path).toString("base64");
+
+        assert(importer.cache[base64] !== undefined, "Not resolving cache!");
+
+        done();
     });
 });

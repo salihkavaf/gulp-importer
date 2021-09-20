@@ -9,7 +9,7 @@ import { Transform } from 'stream';
 
 interface ImporterOptions {
     encoding?: BufferEncoding,
-    ignoreRepeated?: boolean
+    importOnce?: boolean
 }
 
 const PLUGIN_NAME = "gulp-importer";
@@ -17,21 +17,35 @@ const RGX = /@import\s+["']\s*(.*)\s*["']/gi;
 
 const defaults: ImporterOptions = {
     encoding: "utf-8",
-    ignoreRepeated: true
+    importOnce: true
 };
 
+/**
+ * Provides the gulp API for importing any kind of file to any kind of file.
+ */
 class Importer {
+    /**
+     * Initializes a new instance of this class.
+     * @param options The configuration options.
+     */
     constructor(protected readonly options: ImporterOptions = {}) {
         options = Object.assign(options, defaults);
     }
 
     private _cache: any = {};
+
+    /** The dependency cache under watch. */
     get cache() {
         return this._cache;
     }
 
+    /** A stream specific resolve stack, used to insure all chunks in a stream were appropriatly resolved. */
     protected _streamResolveStack: string[] = [];
 
+    /**
+     * Resolves the import statements in the recieved buffers/streams.
+     * @returns {Transform} The transform stream to be added to the pipe chain.
+     */
     import(): Transform {
         const that = this;
         return through.obj(async function (file, enc, cb) {
@@ -67,11 +81,15 @@ class Importer {
     // }
 
     private appendCache(target: string, value: string): void {
+        target = Path.resolve(target);
         target = Importer.encode(target);
+
         if (!this._cache[target])
             this._cache[target] = [value];
         else
+        if (!this._cache[target].includes(value)) {
             this._cache[target].push(value);
+        }
     }
 
     private static encode(value: string): string {
@@ -91,7 +109,6 @@ class Importer {
 
     private resolveStream(path: string): Transform {
         const that = this;
-
         const stream = through(async function (chunk, _, cb) {
 
             let content = Buffer.from(chunk, that.options.encoding).toString();
@@ -109,21 +126,21 @@ class Importer {
     private async replace(path: string, content: string, resolveStack: string[] = []): Promise<string> {
         for (const match of content.matchAll(RGX)) {
             const value = match[0];
-            const iPath = Path.resolve(Path.parse(path).dir, match[1].trim());
+            const dPath = Path.resolve(Path.parse(path).dir, match[1].trim()); // Dependency path.
 
             // Ignore repeated imports..
-            if (this.options.ignoreRepeated) {
-                if (resolveStack.includes(iPath)) {
+            if (this.options.importOnce) {
+                if (resolveStack.includes(dPath)) {
                     content = content.replace(value, "");
                     continue;
                 }
-                else resolveStack.push(iPath);
+                else resolveStack.push(dPath);
             }
 
-            const dependency = await this.readFile(iPath);
+            const dependency = await this.readFile(dPath);
             content = content.replace(value, dependency);
 
-            this.appendCache(path, iPath);
+            this.appendCache(dPath, path);
         }
         return content;
     }
