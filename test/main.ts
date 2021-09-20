@@ -83,8 +83,34 @@ describe("gulp-importer", () => {
         const path   = Path.resolve(libFile);
         const base64 = Buffer.from(path).toString("base64");
 
-        assert(importer.cache[base64] !== undefined, "Not resolving cache!");
-
+        assert(importer.cache.hasOwnProperty(base64), "Not resolving cache!");
         done();
+    });
+
+    it("Importer.watch should update dependency", done => {
+        const stream = fs.createReadStream(libFile, {
+            encoding: "utf-8"
+        });
+
+        const file = new File({
+            contents: stream,
+            path: stream.path as string
+        });
+
+        const imp = importer.watch();
+
+        let length = 0;
+
+        imp.write(file);
+        imp.on("data", file => {
+            assert(file.isStream(), "The output is not stream!");
+
+            file.contents.pipe(es.wait(function (err: any, data: any) {
+                length++;
+
+                if (length == 2)
+                    done();
+            }));
+        });
     });
 });
