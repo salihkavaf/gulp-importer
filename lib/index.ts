@@ -73,37 +73,54 @@ class Importer {
 
     watch(): Transform {
         const that = this;
-        return through.obj(async function (file, enc, cb) {
+        return through.obj(async function (file, _, cb) {
             if (!that.validate(this, file, cb))
                 return;
 
             if (file.isBuffer()) {
-                // TODO Add buffer support..
+                const list = await that.iterateCache(file.path, async function (ref) { return await that.resolveBufferRef(ref) });
+                list.forEach(ref => this.push(ref));
             }
             else if (file.isStream()) {
-                const list = that.resolveDependency(file.path);
+                const list = await that.iterateCache(file.path, async ref => that.resolveStreamRef(ref));
                 list.forEach(ref => this.push(ref));
-
-                this.push(file);
-                cb();
             }
+
+            this.push(file);
+            cb();
         });
     }
 
-    private resolveDependency(path: string): File[] {
+    private async iterateCache(path: string, predicate: (value: File) => Promise<File>): Promise<File[]> {
         let fileList = [];
         const encoded = Importer.encode(Path.resolve(path));
 
         if (this._cache.hasOwnProperty(encoded))
-            for (let [_, value] of Object.entries(this._cache[encoded])) {
-                const refFile = this.resolveReference(value);
+            for (let [_, file] of Object.entries(this._cache[encoded])) {
+                const refFile = await predicate(file);
                 fileList.push(refFile);
             }
 
         return fileList;
     }
 
-    private resolveReference(file: File): File {
+    private async resolveBufferRef(file: File): Promise<File> {
+        try{
+            let refFile = new File({
+                cwd: file.cwd,
+                base: file.base,
+                path: file.path,
+                contents: await afs.readFile(file.path)
+            });
+
+            refFile.contents = await this.resolveBuffer(refFile);
+            return refFile;
+        } catch (error) {
+            throw new PluginError(PLUGIN_NAME, error as Error);
+        }
+    }
+
+    private resolveStreamRef(file: File): File {
         const rStream = fs.createReadStream(file.path, { encoding: this.options.encoding });
         const tStream = this.resolveStream(file);
         
