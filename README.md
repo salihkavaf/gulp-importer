@@ -41,7 +41,7 @@ Automatically execute imports for specific files when dependencies change. This 
 | Name           | Type                                                                      | Default | Info                                                                                                                   |
 |----------------|---------------------------------------------------------------------------|---------|------------------------------------------------------------------------------------------------------------------------|
 | encoding       | ascii, utf8, utf-8, utf16le, ucs2, base64, base64url, latin1, binary, hex | utf-8   | The encoding to be used for buffering and streaming.                                                                   |
-| ignoreRepeated | boolean                                                                   | true    | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
+| importOnce     | boolean                                                                   | true    | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
