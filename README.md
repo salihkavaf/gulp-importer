@@ -11,7 +11,7 @@ npm install gulp-importer --save-dev
 
 ## Usage
 ### Execute Imports
-Here you execute the imports in your files. *gulp-importer* supports both buffering and streaming with custom encoding. See [Options](https://github.com/salihkavaf/gulp-importer/blob/main/README.md#options) for more configurations.
+Here you execute the imports in your files. *gulp-importer* supports both buffering and streaming with custom encoding. See [Options](https://github.com/salihkavaf/gulp-importer/blob/main/README.md#options) for detailed configuration.
 
 It's recommended that you also use a caching plugin like [gulp-cached](https://www.npmjs.com/package/gulp-cached) alongside *gulp-importer* to avoid unnecessarily repeat import execution.
 ```js
