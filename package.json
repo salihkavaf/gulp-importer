@@ -1,9 +1,13 @@
 {
   "name": "gulp-importer",
   "version": "1.0.0",
-  "description": "A simple gulp plugin that allows to import -more like include- files to other files at a specific line. The great thing about this plugin is that it looks up to the importing files and automatically updates dependency.",
-  "main": "index.js",
+  "description": "A simple gulp plugin that allows importing any kind of file to any kind of file. Nevertheless, gulp-importer looks up to the importing files and automatically updates dependency.",
+  "readme": "README.md",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
+    "prepublish": "npm run build",
+    "build": "tsc",
     "test": "mocha -r ts-node/register test/main.ts"
   },
   "repository": {
