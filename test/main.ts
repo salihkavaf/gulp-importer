@@ -127,7 +127,6 @@ describe("gulp-importer", () => {
 
         imp.write(file);
         imp.on("data", file => {
-            console.log(file);
             assert(file.isBuffer(), "The output is not buffer!");
             length++;
 
