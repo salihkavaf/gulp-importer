@@ -12,8 +12,9 @@ import { Transform, TransformCallback } from 'stream';
 interface ImporterOptions {
     [key: string]: any;
 
-    encoding?: BufferEncoding,
-    importOnce?: boolean,
+    regexPattern?: RegExp;
+    encoding?: BufferEncoding;
+    importOnce?: boolean;
     dependencyOutput?: "primary" | "dependant" | "all"
 }
 
@@ -23,6 +24,7 @@ const PLUGIN_NAME = "gulp-importer";
 const RGX = /@{0,1}import\s+["']\s*(.*)\s*["'];{0,1}/gi;
 
 const defaults: ImporterOptions = {
+    regexPattern: RGX,
     encoding: "utf-8",
     importOnce: true,
     dependencyOutput: "primary"
@@ -256,7 +258,7 @@ class Importer {
      * @returns The resolved version of the specified content.
      */
     private async replace(file: any, content: string, resolveStack: string[] = []): Promise<string> {
-        for (const match of content.matchAll(RGX)) {
+        for (const match of content.matchAll(this.options.regexPattern!)) {
             const value = match[0];
             const dPath = Path.resolve(Path.parse(file.path).dir, match[1].trim()); // Dependancy path.
 

@@ -1,6 +1,6 @@
 {
   "name": "gulp-importer",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "A simple gulp plugin that allows importing any kind of file to any kind of file. Nevertheless, gulp-importer looks up through dependant files and automatically updates dependency.",
   "readme": "README.md",
   "main": "./dist/index.js",
