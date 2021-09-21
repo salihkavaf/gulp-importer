@@ -50,7 +50,7 @@ describe("gulp-importer", () => {
 
         imp.write(file);
         imp.once("data", file => {
-            assert(file.isBuffer(), "The outpout is not buffer!");
+            assert(file.isBuffer(), "The output is not buffer!");
 
             assert(file.contents.toString("utf-8"), expected);
             done();
@@ -87,7 +87,7 @@ describe("gulp-importer", () => {
         done();
     });
 
-    it("Importer.watch should update dependency", done => {
+    it("Importer.watch should update stream dependency", done => {
         const stream = fs.createReadStream(libFile, {
             encoding: "utf-8"
         });
@@ -111,6 +111,28 @@ describe("gulp-importer", () => {
                 if (length == 2)
                     done();
             }));
+        });
+    });
+
+    it("Importer.watch should update buffer dependency", done => {
+        const buff = fs.readFileSync(testFile);
+        const file = new File({
+            contents: buff,
+            path: testFile
+        });
+
+        const imp = importer.watch();
+
+        let length = 0;
+
+        imp.write(file);
+        imp.on("data", file => {
+            console.log(file);
+            assert(file.isBuffer(), "The output is not buffer!");
+            length++;
+
+            if (length == 2)
+                done();
         });
     });
 });
