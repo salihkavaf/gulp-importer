@@ -78,7 +78,9 @@ class Importer {
                 return;
 
             if (file.isBuffer()) {
-                const list = await that.iterateCache(file.path, async function (ref) { return await that.resolveBufferRef(ref) });
+                const list = await that.iterateCache(file.path, async ref => await that.resolveBufferRef(ref));
+                console.log("Length = " + list.length);
+                console.log(that._cache);
                 list.forEach(ref => this.push(ref));
             }
             else if (file.isStream()) {
