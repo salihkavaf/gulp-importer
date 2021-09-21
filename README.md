@@ -17,7 +17,7 @@ It's recommended that you also use a caching plugin like [gulp-cached](https://w
 ```js
 const gulp     = require('gulp');
 const cache    = require("gulp-cached");
-const Importer = require('gulp-importer');
+const Importer = require('gulp-importer').default;
 
 const importer = new Importer({
     encoding: "utf-8", // Check the available encodings in the options
