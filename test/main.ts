@@ -115,10 +115,10 @@ describe("gulp-importer", () => {
     });
 
     it("Importer.watch should update buffer dependency", done => {
-        const buff = fs.readFileSync(testFile);
+        const buff = fs.readFileSync(libFile);
         const file = new File({
             contents: buff,
-            path: testFile
+            path: libFile
         });
 
         const imp = importer.watch();
