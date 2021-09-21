@@ -14,13 +14,13 @@ interface ImporterOptions {
 
     encoding?: BufferEncoding,
     importOnce?: boolean,
-    dependencyOutput?: "primary" | "all"
+    dependencyOutput?: "primary" | "dependant" | "all"
 }
 
 type FileCache = Record<string, Record<string, File>>
 
 const PLUGIN_NAME = "gulp-importer";
-const RGX = /[@]{0,1}import\s+["']\s*(.*)\s*["']/gi;
+const RGX = /@{0,1}import\s+["']\s*(.*)\s*["'];{0,1}/gi;
 
 const defaults: ImporterOptions = {
     encoding: "utf-8",
@@ -92,13 +92,15 @@ class Importer {
 
                 if (that.options.dependencyOutput === "all")
                     list.forEach(ref => this.push(ref));
+
+                if (that.options.dependencyOutput !== "dependant")
+                    this.push(file);
             }
             else if (file.isStream()) {
                 const list = await that.iterateCache(file.path, async ref => that.resolveStreamRef(ref));
                 list.forEach(ref => this.push(ref));
+                this.push(file);
             }
-
-            this.push(file);
             cb();
         });
     }
@@ -226,7 +228,7 @@ class Importer {
     }
 
     /**
-     * Resolved the streaming content for the specified file.
+     * Resolves the streaming content for the specified file.
      * @param file The file whose streaming content should be resolved.
      * @returns The transformed stream for the specified file.
      */
