@@ -17,7 +17,7 @@ interface ImporterOptions {
 type FileCache = Record<string, Record<string, File>>
 
 const PLUGIN_NAME = "gulp-importer";
-const RGX = /@import\s+["']\s*(.*)\s*["']/gi;
+const RGX = /[@]{0,1}import\s+["']\s*(.*)\s*["']/gi;
 
 const defaults: ImporterOptions = {
     encoding: "utf-8",
@@ -92,15 +92,15 @@ class Importer {
     }
 
     private async iterateCache(path: string, predicate: (value: File) => Promise<File>): Promise<File[]> {
-        let fileList = [];
+        let fileList: File[] = [];
         const encoded = Importer.encode(Path.resolve(path));
 
-        if (this._cache.hasOwnProperty(encoded))
+        if (this._cache.hasOwnProperty(encoded)) {
             for (let [_, file] of Object.entries(this._cache[encoded])) {
                 const refFile = await predicate(file);
                 fileList.push(refFile);
             }
-
+        }
         return fileList;
     }
 
