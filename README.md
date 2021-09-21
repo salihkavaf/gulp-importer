@@ -31,12 +31,12 @@ gulp.task('import', () => {
         .pipe(cache("imports", {
             optimizeMemory: true
         }))
-        .pipe(importer.import()) // <-- Import here
+        .pipe(importer.execute()) // <-- Execute imports here
         .pipe(gulp.dest('./dist'));
 });
 ```
 
-### Watching Dependency
+### Updating Dependency
 Automatically execute imports for specific files when dependencies change. This saves you a lot of time from going through each file after a simple dependency change. So, we'll watch the resources that's supposed to be cached in the import step above. Why cached? Well, it's much faster to run the imports once and cache a dependency tree rather than looking up through a whole file tree, right?!
 
 ```js
@@ -48,7 +48,7 @@ gulp.task('import', () => {
         .pipe(cache("imports", {
             optimizeMemory: true
         }))
-        .pipe(importer.watch()) // <-- Watch here
+        .pipe(importer.updateDependency()) // <-- Update dependency here
         .pipe(gulp.dest('./dist'));
 });
 
@@ -56,13 +56,14 @@ gulp.task("watch", () => {
     gulp.watch("./lib/**/*.js", gulp.series("update"));
 });
 ```
-> **Note:** Importer.watch() doesn't apply any imports on the recieved file. In fact, it triggers the imports for the dependency tree and pipes all of the updated files out alongside the dependened one. So, all steps that come after watching will also apply to the dependent files.
+> **Note:** Dependency update doesn't apply any imports on the primary file. It only executes dependency imports and pipes all of the updated files out alongside the pirmary one.
 
 ## Options
-| Name           | Type                                                                      | Default | Info                                                                                                                   |
-|----------------|---------------------------------------------------------------------------|---------|------------------------------------------------------------------------------------------------------------------------|
-| encoding       | ascii, utf8, utf-8, utf16le, ucs2, base64, base64url, latin1, binary, hex | utf-8   | The encoding to be used for buffering and streaming.                                                                   |
-| importOnce     | boolean                                                                   | true    | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
+| Name             | Type                                                                      | Default | Info                                                                                                                                                                                               |
+|------------------|---------------------------------------------------------------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| encoding         | ascii, utf8, utf-8, utf16le, ucs2, base64, base64url, latin1, binary, hex | utf-8   | The encoding to be used for buffering and streaming.                                                                                                                                               |
+| ignoreRepeated   | boolean                                                                   | true    | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once                                                                             |
+| dependencyOutput | primary, all                                                              | primary | If set to "all", then all the dependant files are to be piped out alongside the primary file. This option only applies in buffer mode, where in stream mode, dependant files are always piped out. |
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
