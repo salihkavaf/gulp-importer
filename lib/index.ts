@@ -92,7 +92,7 @@ class Importer {
             if (file.isBuffer()) {
                 const list = await that.iterateCache(file.path, async ref => await that.resolveBufferRef(ref));
 
-                if (that.options.dependencyOutput === "all")
+                if (that.options.dependencyOutput !== "primary")
                     list.forEach(ref => this.push(ref));
 
                 if (that.options.dependencyOutput !== "dependant")
