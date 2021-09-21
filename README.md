@@ -62,7 +62,7 @@ gulp.task("watch", () => {
 ## Options
 | Name | Type | Default | Info |
 |---|---|---|---|
-| regexPattern | RegExp | /@{0,1}import\s+["']\s\*__(.\*)__\s\*["'];{0,1}/gi | The regular expression pattern is used to place the import statements. Note that the "(.\*)" partof  the pattern is required, being representing the path.<br>For example, the regex for (hello <./path/here>) is (/hello\s+<(.\*)>/gi). |
+| regexPattern | RegExp | /@{0,1}import\s+["']\s\*__(.\*)__\s\*["'];{0,1}/gi | The regular expression pattern is used to place the import statements. Note that the "(.\*)" part of the pattern is required, being pointing to the path.<br>For example, the regex for (hello <./path/here>) is (/hello\s+<(.\*)>/gi). |
 | encoding | ascii, utf8, utf-8, utf16le, ucs2, base64, base64url, latin1, binary, hex | utf-8 | The encoding to be used for buffering and streaming. |
 | ignoreRepeated | boolean | true | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
 | dependencyOutput | primary, all, dependant | primary | **1. primary:** Only the primary file will be piped out.<br>**2. dependant:** Only dependant files will be piped out.<br>**3. all:** The primary file and the dependant files will all be piped out.<br>This option only applies in buffer mode, wherein stream mode, dependant files are always piped out. |
