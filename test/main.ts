@@ -13,7 +13,8 @@ const expected = "This is the lib file!\r\nThis is the source file!";
 describe("gulp-importer", () => {
 
     const importer = new Importer({
-        encoding: "utf-8"
+        encoding: "utf-8",
+        dependencyOutput: "all"
     });
 
     it("should work in stream mode", done => {
@@ -26,7 +27,7 @@ describe("gulp-importer", () => {
             path: stream.path as string
         });
 
-        const imp = importer.import();
+        const imp = importer.execute();
 
         imp.write(file);
         imp.once("data", file => {
@@ -46,7 +47,7 @@ describe("gulp-importer", () => {
             path: testFile
         });
 
-        const imp = importer.import();
+        const imp = importer.execute();
 
         imp.write(file);
         imp.once("data", file => {
@@ -67,7 +68,7 @@ describe("gulp-importer", () => {
             path: testFile
         });
 
-        const imp = importer.import();
+        const imp = importer.execute();
 
         imp.write(file);
         imp.once("data", file => {
@@ -87,7 +88,7 @@ describe("gulp-importer", () => {
         done();
     });
 
-    it("Importer.watch should update stream dependency", done => {
+    it("Should update dependency in stream mode", done => {
         const stream = fs.createReadStream(libFile, {
             encoding: "utf-8"
         });
@@ -97,7 +98,7 @@ describe("gulp-importer", () => {
             path: stream.path as string
         });
 
-        const imp = importer.watch();
+        const imp = importer.updateDependency();
 
         let length = 0;
 
@@ -114,14 +115,14 @@ describe("gulp-importer", () => {
         });
     });
 
-    it("Importer.watch should update buffer dependency", done => {
+    it("Should update dependency in buffer mode", done => {
         const buff = fs.readFileSync(libFile);
         const file = new File({
             contents: buff,
             path: libFile
         });
 
-        const imp = importer.watch();
+        const imp = importer.updateDependency();
 
         let length = 0;
 

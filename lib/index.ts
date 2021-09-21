@@ -5,13 +5,16 @@ import afs         from 'fs/promises'
 import fs          from 'fs';
 import File        from 'vinyl';
 
-import { PassThrough, Transform, TransformCallback } from 'stream';
+import { Transform, TransformCallback } from 'stream';
 
 //---- End of imports ---------------------
 
 interface ImporterOptions {
+    [key: string]: any;
+
     encoding?: BufferEncoding,
-    importOnce?: boolean
+    importOnce?: boolean,
+    dependencyOutput?: "primary" | "all"
 }
 
 type FileCache = Record<string, Record<string, File>>
@@ -21,7 +24,8 @@ const RGX = /[@]{0,1}import\s+["']\s*(.*)\s*["']/gi;
 
 const defaults: ImporterOptions = {
     encoding: "utf-8",
-    importOnce: true
+    importOnce: true,
+    dependencyOutput: "primary"
 };
 
 /**
@@ -33,12 +37,14 @@ class Importer {
      * @param options The configuration options.
      */
     constructor(protected readonly options: ImporterOptions = {}) {
-        options = Object.assign(options, defaults);
+        for (const key in defaults)
+            if (!options[key])
+                options[key] = defaults[key];
     }
 
     private _cache: FileCache = {};
 
-    /** The dependency cache under watch. */
+    /** The dependancy cache under watch. */
     get cache(): FileCache {
         return this._cache;
     }
@@ -50,7 +56,7 @@ class Importer {
      * Resolves the import statements in the recieved buffers/streams.
      * @returns {Transform} The transform stream to be added to the pipe chain.
      */
-    import(): Transform {
+    execute(): Transform {
         const that = this;
         return through.obj(async function (file, enc, cb) {
             if (!that.validate(this, file, cb))
@@ -71,7 +77,11 @@ class Importer {
         })
     }
 
-    watch(): Transform {
+    /**
+     * Updates imports for dependancies when a primary file gets modified.
+     * @returns The transform stream to be added to the pipe chain.
+     */
+    updateDependency(): Transform {
         const that = this;
         return through.obj(async function (file, _, cb) {
             if (!that.validate(this, file, cb))
@@ -79,7 +89,9 @@ class Importer {
 
             if (file.isBuffer()) {
                 const list = await that.iterateCache(file.path, async ref => await that.resolveBufferRef(ref));
-                list.forEach(ref => this.push(ref));
+
+                if (that.options.dependencyOutput === "all")
+                    list.forEach(ref => this.push(ref));
             }
             else if (file.isStream()) {
                 const list = await that.iterateCache(file.path, async ref => that.resolveStreamRef(ref));
@@ -91,6 +103,12 @@ class Importer {
         });
     }
 
+    /**
+     * Iterates throught and modifies dependant files.
+     * @param path The path to the primary file.
+     * @param predicate The action to resolve a dependant file.
+     * @returns The promise that represents the asynchronous operation, containing the resolved files.
+     */
     private async iterateCache(path: string, predicate: (value: File) => Promise<File>): Promise<File[]> {
         let fileList: File[] = [];
         const encoded = Importer.encode(Path.resolve(path));
@@ -104,6 +122,11 @@ class Importer {
         return fileList;
     }
 
+    /**
+     * Resolves buffers for the specified file.
+     * @param file The file to resolve buffers for.
+     * @returns The promise that represents the asynchronous operation, containing the resolved file.
+     */
     private async resolveBufferRef(file: File): Promise<File> {
         try{
             let refFile = new File({
@@ -120,6 +143,11 @@ class Importer {
         }
     }
 
+    /**
+     * Resolves streaming content for the specified file.
+     * @param file The file whose streaming contents should be resolved.
+     * @returns The promise that represents the asynchronous operation, containing the resolved file.
+     */
     private resolveStreamRef(file: File): File {
         const rStream = fs.createReadStream(file.path, { encoding: this.options.encoding });
         const tStream = this.resolveStream(file);
@@ -132,6 +160,13 @@ class Importer {
         });
     }
 
+    /**
+     * Validates an input file.
+     * @param stream The pipe stream.
+     * @param file The input file.
+     * @param cb The transform callback.
+     * @returns The flag indicating whether the input file is valid.
+     */
     private validate(stream: Transform, file: any, cb: TransformCallback): boolean {
         if (file.isNull()) {
             cb(null, file);
@@ -146,27 +181,43 @@ class Importer {
         return true;
     }
 
-    private appendCache(dependency: string, target: any): void {
-        dependency = Importer.encode(dependency);
+    /**
+     * Appends the speicifed dependancy path to primary relative cache to be triggered on modify.
+     * @param dpnPath The dependant file to be added to the update cache.
+     * @param prmPath The primary file that triggers the update.
+     */
+    private appendCache(dpnPath: string, prmPath: any): void {
+        dpnPath = Importer.encode(dpnPath);
         const file = new File({
-            cwd: target.cwd,
-            base: target.base,
-            path: Path.resolve(target.path)
+            cwd: prmPath.cwd,
+            base: prmPath.base,
+            path: Path.resolve(prmPath.path)
         });
 
         const path = Importer.encode(file.path);
 
-        if (!this._cache[dependency])
-            this._cache[dependency] = { [path]: file };
+        if (!this._cache[dpnPath])
+            this._cache[dpnPath] = { [path]: file };
         else
-        if (!this._cache[dependency].hasOwnProperty(path)) {
-            this._cache[dependency][path] = file;
+        if (!this._cache[dpnPath].hasOwnProperty(path)) {
+            this._cache[dpnPath][path] = file;
         }
     }
+
+    /**
+     * Returns the base64 encoded version of the specified value.
+     * @param value The value to be encoded.
+     * @returns The incoded version of the input value.
+     */
     private static encode(value: string): string {
         return Buffer.from(value).toString('base64');
     }
 
+    /**
+     * Resolves the buffers for the specified file.
+     * @param file The file whose buffer should be resolved.
+     * @returns The resolved buffers.
+     */
     private async resolveBuffer(file: any): Promise<Buffer> {
         let content = file.contents.toString(this.options.encoding);
         content = await this.replace(file, content);
@@ -174,6 +225,11 @@ class Importer {
         return Buffer.from(content, this.options.encoding);
     }
 
+    /**
+     * Resolved the streaming content for the specified file.
+     * @param file The file whose streaming content should be resolved.
+     * @returns The transformed stream for the specified file.
+     */
     private resolveStream(file: any): Transform {
         const that = this;
         const stream = through(async function (chunk, _, cb) {
@@ -190,10 +246,17 @@ class Importer {
         return stream;
     }
 
+    /**
+     * Applies imports on the specified content.
+     * @param file The file apply imports for.
+     * @param content The content to apply imports on.
+     * @param resolveStack The resolve stack to cache the resolved imports.
+     * @returns The resolved version of the specified content.
+     */
     private async replace(file: any, content: string, resolveStack: string[] = []): Promise<string> {
         for (const match of content.matchAll(RGX)) {
             const value = match[0];
-            const dPath = Path.resolve(Path.parse(file.path).dir, match[1].trim()); // Dependency path.
+            const dPath = Path.resolve(Path.parse(file.path).dir, match[1].trim()); // Dependancy path.
 
             // Ignore repeated imports..
             if (this.options.importOnce) {
@@ -212,6 +275,11 @@ class Importer {
         return content;
     }
 
+    /**
+     * Reads the content of the file at the specified path.
+     * @param path The path of the desired file.
+     * @returns The promise that represents the asynchronous operation, containing the content of the file, if exists.
+     */
     private async readFile(path: string): Promise<string> {
         try {
             const content = await afs.readFile(path, { encoding: this.options.encoding });
