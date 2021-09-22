@@ -1,10 +1,10 @@
 import PluginError from 'plugin-error';
 import through     from 'through2';
 import Path        from 'path';
-import afs         from 'fs/promises'
 import fs          from 'fs';
 import File        from 'vinyl';
 
+import { promises as afs } from 'fs'
 import { Transform, TransformCallback } from 'stream';
 
 //---- End of imports ---------------------
