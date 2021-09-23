@@ -64,18 +64,23 @@ class Importer {
             if (!that.validate(this, file, cb))
                 return;
 
-            if (file.isBuffer()) {
-                file.contents = await that.resolveBuffer(file);
+            try {
+                if (file.isBuffer()) {
+                    file.contents = await that.resolveBuffer(file);
+                }
+                else if (file.isStream()) {
+                    const stream = that.resolveStream(file);
+                    stream.on("error", this.emit.bind(this, "error"));
+    
+                    file.contents = file.contents.pipe(stream)
+                }
+    
+                this.push(file);
+                cb();
             }
-            else if (file.isStream()) {
-                const stream = that.resolveStream(file);
-                stream.on("error", this.emit.bind(this, "error"));
-
-                file.contents = file.contents.pipe(stream)
+            catch (err) {
+                cb(new PluginError(PLUGIN_NAME, err as Error));
             }
-
-            this.push(file);
-            cb();
         })
     }
 
@@ -89,21 +94,26 @@ class Importer {
             if (!that.validate(this, file, cb))
                 return;
 
-            if (file.isBuffer()) {
-                const list = await that.iterateCache(file.path, async ref => await that.resolveBufferRef(ref));
-
-                if (that.options.dependencyOutput !== "primary")
+            try {
+                if (file.isBuffer()) {
+                    const list = await that.iterateCache(file.path, async ref => await that.resolveBufferRef(ref));
+    
+                    if (that.options.dependencyOutput !== "primary")
+                        list.forEach(ref => this.push(ref));
+    
+                    if (that.options.dependencyOutput !== "dependant")
+                        this.push(file);
+                }
+                else if (file.isStream()) {
+                    const list = await that.iterateCache(file.path, async ref => that.resolveStreamRef(ref));
                     list.forEach(ref => this.push(ref));
-
-                if (that.options.dependencyOutput !== "dependant")
                     this.push(file);
+                }
+                cb();
             }
-            else if (file.isStream()) {
-                const list = await that.iterateCache(file.path, async ref => that.resolveStreamRef(ref));
-                list.forEach(ref => this.push(ref));
-                this.push(file);
+            catch (err) {
+                cb(new PluginError(PLUGIN_NAME, err as Error));
             }
-            cb();
         });
     }
 
