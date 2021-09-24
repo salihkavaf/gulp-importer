@@ -282,7 +282,7 @@ class Importer {
             }
 
             const dependency = await this.readFile(dPath);
-            content = content.replace(value, dependency);
+            content = content.replace(value, dependency.replace(/\$/g, "$$$$"));
 
             this.appendCache(dPath, file);
         }
