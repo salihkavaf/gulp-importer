@@ -14,7 +14,8 @@ describe("gulp-importer", () => {
 
     const importer = new Importer({
         encoding: "utf-8",
-        dependencyOutput: "all"
+        dependencyOutput: "all",
+        detailedLog: true
     });
 
     it("should work in stream mode", done => {

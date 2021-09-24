@@ -3,6 +3,7 @@ import through     from 'through2';
 import Path        from 'path';
 import fs          from 'fs';
 import File        from 'vinyl';
+import log         from 'fancy-log'
 
 import { promises as afs } from 'fs'
 import { Transform, TransformCallback } from 'stream';
@@ -15,7 +16,9 @@ interface ImporterOptions {
     regexPattern?: RegExp;
     encoding?: BufferEncoding;
     importOnce?: boolean;
-    dependencyOutput?: "primary" | "dependant" | "all"
+    dependencyOutput?: "primary" | "dependant" | "all",
+    disableLog?: boolean,
+    detailedLog?: boolean
 }
 
 type FileCache = Record<string, Record<string, File>>
@@ -27,7 +30,9 @@ const defaults: ImporterOptions = {
     regexPattern: RGX,
     encoding: "utf-8",
     importOnce: true,
-    dependencyOutput: "primary"
+    dependencyOutput: "primary",
+    disableLog: false,
+    detailedLog: false
 };
 
 /**
@@ -71,10 +76,10 @@ class Importer {
                 else if (file.isStream()) {
                     const stream = that.resolveStream(file);
                     stream.on("error", this.emit.bind(this, "error"));
-    
+
                     file.contents = file.contents.pipe(stream)
                 }
-    
+
                 this.push(file);
                 cb();
             }
@@ -94,25 +99,33 @@ class Importer {
             if (!that.validate(this, file, cb))
                 return;
 
+            const logInfo = (num: number) => log.info(`${num} dependant file${num > 1 ? "s" : ""}...`);
+
             try {
                 if (file.isBuffer()) {
                     const list = await that.iterateCache(file.path, async ref => await that.resolveBufferRef(ref));
-    
+                    if (!that.options.disableLog)
+                        logInfo(list.length);
+
                     if (that.options.dependencyOutput !== "primary")
                         list.forEach(ref => this.push(ref));
-    
+
                     if (that.options.dependencyOutput !== "dependant")
                         this.push(file);
                 }
                 else if (file.isStream()) {
                     const list = await that.iterateCache(file.path, async ref => that.resolveStreamRef(ref));
+                    if (!that.options.disableLog)
+                        logInfo(list.length);
+
                     list.forEach(ref => this.push(ref));
                     this.push(file);
                 }
                 cb();
             }
-            catch (err) {
-                cb(new PluginError(PLUGIN_NAME, err as Error));
+            catch (err: any) {
+                log.error(err.message);
+                cb(new PluginError(PLUGIN_NAME, err));
             }
         });
     }
@@ -152,8 +165,8 @@ class Importer {
 
             refFile.contents = await this.resolveBuffer(refFile);
             return refFile;
-        } catch (error) {
-            throw new PluginError(PLUGIN_NAME, error as Error);
+        } catch (error: any) {
+            throw new PluginError(PLUGIN_NAME, error);
         }
     }
 
@@ -165,7 +178,7 @@ class Importer {
     private resolveStreamRef(file: File): File {
         const rStream = fs.createReadStream(file.path, { encoding: this.options.encoding });
         const tStream = this.resolveStream(file);
-        
+
         return new File({
             cwd: file.cwd,
             base: file.base,
@@ -276,6 +289,10 @@ class Importer {
             if (this.options.importOnce) {
                 if (resolveStack.includes(dPath)) {
                     content = content.replace(value, "");
+
+                    if (!this.options.disableLog)
+                        log.warn(`Repeated import "${dPath}" in "${file.path}"`);
+
                     continue;
                 }
                 else resolveStack.push(dPath);
@@ -286,6 +303,10 @@ class Importer {
 
             this.appendCache(dPath, file);
         }
+
+        if (this.options.detailedLog)
+            log.info("Resolved imports for: " + file.path);
+
         return content;
     }
 
@@ -302,7 +323,7 @@ class Importer {
             else
                 return content;
         }
-        catch (error) {
+        catch (error: any) {
             throw new PluginError(PLUGIN_NAME, `The path "${path}" doesn't exist!`);
         }
     };
