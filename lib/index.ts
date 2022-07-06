@@ -16,9 +16,10 @@ interface ImporterOptions {
     regexPattern?: RegExp;
     encoding?: BufferEncoding;
     importOnce?: boolean;
-    dependencyOutput?: "primary" | "dependant" | "all",
-    disableLog?: boolean,
-    detailedLog?: boolean
+    importRecursively?: boolean;
+    dependencyOutput?: "primary" | "dependant" | "all";
+    disableLog?: boolean;
+    detailedLog?: boolean;
 }
 
 type FileCache = Record<string, Record<string, File>>
@@ -30,6 +31,7 @@ const defaults: ImporterOptions = {
     regexPattern: RGX,
     encoding: "utf-8",
     importOnce: true,
+    importRecursively: false,
     dependencyOutput: "primary",
     disableLog: false,
     detailedLog: false
@@ -298,8 +300,11 @@ class Importer {
                 else resolveStack.push(dPath);
             }
 
-            const dependency = await this.readFile(dPath);
-            content = content.replace(value, dependency.replace(/\$/g, "$$$$"));
+            const dContent = this.options.importRecursively
+                ? await this.readFile(dPath)
+                : await this.replace(new File({ path: dPath }), await this.readFile(dPath)); // Recursive call.
+
+            content = content.replace(value, dContent.replace(/\$/g, "$$$$"));
 
             this.appendCache(dPath, file);
         }

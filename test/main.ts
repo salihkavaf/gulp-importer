@@ -7,8 +7,10 @@ import Path     from 'path'
 
 const libFile  = "test/res/lib.txt";
 const testFile = "test/res/src.txt";
-
 const expected = "This is the lib file!\r\nThis is the source file!";
+
+const recTestFile = "test/res/src.rec.txt";
+const recExpected = "This is the lib file!\r\nThis is the a dependant lib file!\r\nThis is the source file!";
 
 describe("gulp-importer", () => {
 
@@ -35,7 +37,7 @@ describe("gulp-importer", () => {
             assert(file.isStream(), "The output is not stream!");
 
             file.contents.pipe(es.wait(function (err: any, data: any) {
-                assert.equal(data.toString(), expected, "Unexprected stream output!");
+                assert.equal(data.toString(), expected, "Unexpected stream output!");
                 done();
             }));
         });
@@ -54,7 +56,7 @@ describe("gulp-importer", () => {
         imp.once("data", file => {
             assert(file.isBuffer(), "The output is not buffer!");
 
-            assert(file.contents.toString("utf-8"), expected);
+            assert.equal(file.contents.toString("utf-8"), expected, "Unexpected buffer output!");
             done();
         });
     });
@@ -134,6 +136,47 @@ describe("gulp-importer", () => {
 
             if (length == 2)
                 done();
+        });
+    });
+
+    it("Should recursively update dependency in stream mode", done => {
+        const stream = fs.createReadStream(recTestFile, {
+            encoding: "utf-8"
+        });
+
+        const file = new File({
+            contents: stream,
+            path: stream.path as string
+        });
+
+        const imp = importer.execute();
+
+        imp.write(file);
+        imp.once("data", file => {
+            assert(file.isStream(), "The output is not stream!");
+
+            file.contents.pipe(es.wait(function (err: any, data: any) {
+                assert.equal(data.toString(), recExpected, "Unexpected stream output!");
+                done();
+            }));
+        });
+    });
+
+    it("Should recursively update dependency in buffer mode", done => {
+        const buff = fs.readFileSync(recTestFile);
+        const file = new File({
+            contents: buff,
+            path: recTestFile
+        });
+
+        const imp = importer.execute();
+
+        imp.write(file);
+        imp.once("data", file => {
+            assert(file.isBuffer(), "The output is not buffer!");
+
+            assert.equal(file.contents.toString("utf-8"), recExpected, "Unexpected buffer output!");
+            done();
         });
     });
 });
