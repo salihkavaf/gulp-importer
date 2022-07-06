@@ -1,7 +1,7 @@
 # gulp-importer
 A simple gulp plugin that allows importing any kind of file to any kind of file. Nevertheless, *gulp-importer* looks up to the **importing** files and automatically updates dependency. So, when developing lib files other such, you don't have to go through every file that imports that lib and recompile it; instead, just let *gulp-importer* take care of it for you.
 
-> **Note:** This plugin is still in beta version. So, if you experience any issues or come across some bugs, or even have a feature suggestion, feel free to open an issue or contribute if you'd like to.
+> **Note:** If you experience any issues or come across some bugs, or even have a feature suggestion, feel free to open an issue or contribute if you'd like to.
 
 ## Installation
 To install the plugin, run the following command in your terminal:
@@ -63,11 +63,12 @@ gulp.task("watch", () => {
 | Name | Type | Default | Info |
 |---|---|---|---|
 | encoding | ascii, utf8, utf-8, utf16le, ucs2, base64, base64url, latin1, binary, hex | utf-8 | The encoding to be used for buffering and streaming. |
-| ignoreRepeated | boolean | true | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
+| importOnce | boolean | true | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
 | dependencyOutput | primary, all, dependant | primary | **1. primary:** Only the primary file will be piped out.<br>**2. dependant:** Only dependant files will be piped out.<br>**3. all:** The primary file and the dependant files will all be piped out.<br>This option only applies in buffer mode, wherein stream mode, dependant files are always piped out. |
 | disableLog | boolean | false | Disables the built-in log messages. |
 | detailedLog | boolean | false | Provides detailed log messages describing each step taken through the process. |
 | regexPattern | RegExp | /@{0,1}import\s+["']\s\*(.\*)\s\*["'];{0,1}/gi | The regular expression pattern is used to place the import statements. Note that the "(.\*)" part of the pattern is required, being pointing to the path.<br>For example, the regex for (hello <./path/here>) is (/hello\s+<(.\*)>/gi). |
+| importRecursively | boolean | false | The flag that indicates whether to recursively resolve nested imports. Which means that dependencies can also have dependencies. |
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
