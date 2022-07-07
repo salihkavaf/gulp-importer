@@ -63,12 +63,13 @@ gulp.task("watch", () => {
 | Name | Type | Default | Info |
 |---|---|---|---|
 | encoding | ascii, utf8, utf-8, utf16le, ucs2, base64, base64url, latin1, binary, hex | utf-8 | The encoding to be used for buffering and streaming. |
-| importOnce | boolean | true | The flag that indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
+| importOnce | boolean | true | The flag indicates whether to ingore repeated import statements. In other words, a file can only be imported once |
 | dependencyOutput | primary, all, dependant | primary | **1. primary:** Only the primary file will be piped out.<br>**2. dependant:** Only dependant files will be piped out.<br>**3. all:** The primary file and the dependant files will all be piped out.<br>This option only applies in buffer mode, wherein stream mode, dependant files are always piped out. |
 | disableLog | boolean | false | Disables the built-in log messages. |
 | detailedLog | boolean | false | Provides detailed log messages describing each step taken through the process. |
 | regexPattern | RegExp | /@{0,1}import\s+["']\s\*(.\*)\s\*["'];{0,1}/gi | The regular expression pattern is used to place the import statements. Note that the "(.\*)" part of the pattern is required, being pointing to the path.<br>For example, the regex for (hello <./path/here>) is (/hello\s+<(.\*)>/gi). |
-| importRecursively | boolean | false | The flag that indicates whether to recursively resolve nested imports. Which means that dependencies can also have dependencies. |
+| importRecursively | boolean | false | The flag indicates whether to recursively resolve nested imports. Which means that dependencies can also have dependencies. |
+| requireExtension | boolean | true | The flag indicates whether to resolve extensionless files. So, instead of "./index.js", "./index" would do just fine. |
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
