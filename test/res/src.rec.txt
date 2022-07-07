@@ -1,2 +1,0 @@
-@import "./lib.rec.txt"
-This is the source file!

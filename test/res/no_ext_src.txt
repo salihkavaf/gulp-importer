@@ -1,0 +1,2 @@
+@import "./recursive_lib"
+This is the source file!

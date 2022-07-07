@@ -20,6 +20,7 @@ interface ImporterOptions {
     dependencyOutput?: "primary" | "dependant" | "all";
     disableLog?: boolean;
     detailedLog?: boolean;
+    requireExtension?: boolean;
 }
 
 type FileCache = Record<string, Record<string, File>>
@@ -34,7 +35,8 @@ const defaults: ImporterOptions = {
     importRecursively: false,
     dependencyOutput: "primary",
     disableLog: false,
-    detailedLog: false
+    detailedLog: false,
+    requireExtension: true
 };
 
 /**
@@ -47,7 +49,7 @@ class Importer {
      */
     constructor(protected readonly options: ImporterOptions = {}) {
         for (const key in defaults)
-            if (!options[key])
+            if (!options.hasOwnProperty(key))
                 options[key] = defaults[key];
     }
 
@@ -300,7 +302,7 @@ class Importer {
                 else resolveStack.push(dPath);
             }
 
-            const dContent = this.options.importRecursively
+            const dContent = !this.options.importRecursively
                 ? await this.readFile(dPath)
                 : await this.replace(new File({ path: dPath }), await this.readFile(dPath)); // Recursive call.
 
@@ -322,6 +324,18 @@ class Importer {
      */
     private async readFile(path: string): Promise<string> {
         try {
+            if (!this.options.requireExtension) {
+                const parsedPath = Path.parse(path);
+                const dirContent = await afs.readdir(parsedPath.dir);
+
+                const match = dirContent.find(base => base.startsWith(parsedPath.base));
+                if (! match)
+                    throw new Error();
+
+                parsedPath.base = match;
+                path = Path.format(parsedPath);
+            }
+
             const content = await afs.readFile(path, { encoding: this.options.encoding });
             if (content instanceof Buffer)
                 return content.toString();

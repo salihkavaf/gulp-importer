@@ -9,19 +9,23 @@ const libFile  = "test/res/lib.txt";
 const testFile = "test/res/src.txt";
 const expected = "This is the lib file!\r\nThis is the source file!";
 
-const recTestFile = "test/res/src.rec.txt";
+const recTestFile = "test/res/recursive_src.txt";
 const recExpected = "This is the lib file!\r\nThis is the a dependant lib file!\r\nThis is the source file!";
+
+const noExtFile = "test/res/no_ext_src.txt";
 
 describe("gulp-importer", () => {
 
     const importer = new Importer({
         encoding: "utf-8",
+        disableLog: true,
         dependencyOutput: "all",
-        detailedLog: true
+        importRecursively: true,
+        requireExtension: false
     });
 
-    it("should work in stream mode", done => {
-        const stream = fs.createReadStream(testFile, {
+    function resolveStream(filename: string, expected: string, done: Mocha.Done) {
+        const stream = fs.createReadStream(filename, {
             encoding: "utf-8"
         });
 
@@ -41,13 +45,13 @@ describe("gulp-importer", () => {
                 done();
             }));
         });
-    });
+    }
 
-    it("should work in buffer mode", done => {
-        const buff = fs.readFileSync(testFile);
+    function resolveBuffer(filename: string, expected: string, done: Mocha.Done) {
+        const buff = fs.readFileSync(filename);
         const file = new File({
             contents: buff,
-            path: testFile
+            path: filename
         });
 
         const imp = importer.execute();
@@ -59,7 +63,10 @@ describe("gulp-importer", () => {
             assert.equal(file.contents.toString("utf-8"), expected, "Unexpected buffer output!");
             done();
         });
-    });
+    }
+
+    it("should work in stream mode", done => resolveStream(testFile, expected, done));
+    it("should work in buffer mode", done => resolveBuffer(testFile, expected, done));
 
     it("importOnce option should work", done => {
         const content = '@import "./lib.txt"\r\n' +
@@ -139,44 +146,8 @@ describe("gulp-importer", () => {
         });
     });
 
-    it("Should recursively update dependency in stream mode", done => {
-        const stream = fs.createReadStream(recTestFile, {
-            encoding: "utf-8"
-        });
+    it("Should recursively update dependency in stream mode", done => resolveStream(recTestFile, recExpected, done));
+    it("Should recursively update dependency in buffer mode", done => resolveBuffer(recTestFile, recExpected, done));
 
-        const file = new File({
-            contents: stream,
-            path: stream.path as string
-        });
-
-        const imp = importer.execute();
-
-        imp.write(file);
-        imp.once("data", file => {
-            assert(file.isStream(), "The output is not stream!");
-
-            file.contents.pipe(es.wait(function (err: any, data: any) {
-                assert.equal(data.toString(), recExpected, "Unexpected stream output!");
-                done();
-            }));
-        });
-    });
-
-    it("Should recursively update dependency in buffer mode", done => {
-        const buff = fs.readFileSync(recTestFile);
-        const file = new File({
-            contents: buff,
-            path: recTestFile
-        });
-
-        const imp = importer.execute();
-
-        imp.write(file);
-        imp.once("data", file => {
-            assert(file.isBuffer(), "The output is not buffer!");
-
-            assert.equal(file.contents.toString("utf-8"), recExpected, "Unexpected buffer output!");
-            done();
-        });
-    });
+    it("should work without file extension", done => resolveStream(noExtFile, recExpected, done));
 });
