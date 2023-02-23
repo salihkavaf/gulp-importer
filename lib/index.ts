@@ -6,14 +6,18 @@ import File        from 'vinyl';
 import log         from 'fancy-log'
 
 import { promises as afs } from 'fs'
-import { Transform, TransformCallback } from 'stream';
+import { Transform, TransformCallback, Readable } from 'stream';
 
 //---- End of imports ---------------------
+
+type FileCache  = Record<string, Record<string, File>>
+type Transformation = (src: NodeJS.ReadableStream) => Transform; // Pipeline action type.
 
 interface ImporterOptions {
     [key: string]: any;
 
     regexPattern?: RegExp;
+    regexGroup?: number;
     encoding?: BufferEncoding;
     importOnce?: boolean;
     importRecursively?: boolean;
@@ -23,13 +27,19 @@ interface ImporterOptions {
     requireExtension?: boolean;
 }
 
-type FileCache = Record<string, Record<string, File>>
+interface ReplaceOptions {
+    file: any,
+    content: string,
+    resolveStack: string[],
+    transformation?: Transformation
+}
 
 const PLUGIN_NAME = "gulp-importer";
 const RGX = /@{0,1}import\s+["']\s*(.*)\s*["'];{0,1}/gi;
 
 const defaults: ImporterOptions = {
     regexPattern: RGX,
+    regexGroup: 1,
     encoding: "utf-8",
     importOnce: true,
     importRecursively: false,
@@ -67,7 +77,7 @@ class Importer {
      * Resolves the import statements in the recieved buffers/streams.
      * @returns {Transform} The transform stream to be added to the pipe chain.
      */
-    execute(): Transform {
+    execute(innerPl?: Transformation): Transform {
         const that = this;
         return through.obj(async function (file, enc, cb) {
             if (!that.validate(this, file, cb))
@@ -75,15 +85,14 @@ class Importer {
 
             try {
                 if (file.isBuffer()) {
-                    file.contents = await that.resolveBuffer(file);
+                    file.contents = await that.resolveBuffer(file, innerPl);
                 }
                 else if (file.isStream()) {
-                    const stream = that.resolveStream(file);
+                    const stream = that.resolveStream(file, innerPl);
                     stream.on("error", this.emit.bind(this, "error"));
 
                     file.contents = file.contents.pipe(stream)
                 }
-
                 this.push(file);
                 cb();
             }
@@ -249,9 +258,14 @@ class Importer {
      * @param file The file whose buffer should be resolved.
      * @returns The resolved buffers.
      */
-    private async resolveBuffer(file: any): Promise<Buffer> {
+    private async resolveBuffer(file: any, innerPl?: Transformation): Promise<Buffer> {
         let content = file.contents.toString(this.options.encoding);
-        content = await this.replace(file, content);
+
+        content = await this.replace({
+            file, content,
+            resolveStack: [],
+            transformation: innerPl
+        });
 
         return Buffer.from(content, this.options.encoding);
     }
@@ -261,12 +275,16 @@ class Importer {
      * @param file The file whose streaming content should be resolved.
      * @returns The transformed stream for the specified file.
      */
-    private resolveStream(file: any): Transform {
+    private resolveStream(file: any, innerPl?: Transformation): Transform {
         const that = this;
         const stream = through(async function (chunk, _, cb) {
-
-            let content = Buffer.from(chunk, that.options.encoding).toString();
-            content = await that.replace(file, content, that._streamResolveStack);
+            let
+            content = Buffer.from(chunk, that.options.encoding).toString();
+            content = await that.replace({
+                file, content,
+                resolveStack : that._streamResolveStack,
+                transformation: innerPl
+            });
 
             this.push(content);
             cb();
@@ -284,14 +302,16 @@ class Importer {
      * @param resolveStack The resolve stack to cache the resolved imports.
      * @returns The resolved version of the specified content.
      */
-    private async replace(file: any, content: string, resolveStack: string[] = []): Promise<string> {
+    private async replace(options: ReplaceOptions): Promise<string> {
+        let { file, content, transformation } = options;
+
         for (const match of content.matchAll(this.options.regexPattern!)) {
             const value = match[0];
-            const dPath = Path.resolve(Path.parse(file.path).dir, match[1].trim()); // Dependancy path.
+            const dPath = Path.resolve(Path.parse(file.path).dir, match[this.options.regexGroup ?? 1].trim()); // Dependancy path.
 
             // Ignore repeated imports..
             if (this.options.importOnce) {
-                if (resolveStack.includes(dPath)) {
+                if (options.resolveStack.includes(dPath)) {
                     content = content.replace(value, "");
 
                     if (!this.options.disableLog)
@@ -299,12 +319,19 @@ class Importer {
 
                     continue;
                 }
-                else resolveStack.push(dPath);
+                else options.resolveStack.push(dPath);
             }
 
-            const dContent = !this.options.importRecursively
-                ? await this.readFile(dPath)
-                : await this.replace(new File({ path: dPath }), await this.readFile(dPath)); // Recursive call.
+            let dContent = await this.getDependencyContent(dPath, transformation);
+
+            if (this.options.importRecursively) {
+                dContent = await this.replace({
+                    file: new File({ path: dPath }),
+                    content: dContent,
+                    resolveStack: [],
+                    transformation
+                });
+            }
 
             content = content.replace(value, dContent.replace(/\$/g, "$$$$"));
 
@@ -318,25 +345,44 @@ class Importer {
     }
 
     /**
+     * Gets the content of the file at the given path and applies the specified transformation, if any.
+     * @param path The path of the desired file.
+     * @param transformation The optional transformation pipeline to be applied.
+     * @returns The promise that represents the asynchronous operation, containing the processed dependency content.
+     */
+    private async getDependencyContent(path: string, transformation?: Transformation): Promise<string> {
+        return !!transformation
+            ? await this.transform(await this.readStream(path), transformation)
+            : await this.readFile(path);
+    }
+
+    /**
+     * Executes the specified transformation for the given input stream.
+     * @param input The input stream to initiate the pipeline.
+     * @param transformation The action for building the transformation pipeline.
+     * @returns The content that's returned by the transformation operation.
+     */
+    private transform(input: NodeJS.ReadableStream, transformation: Transformation): Promise<string> {
+        const output = transformation(input);
+
+        return new Promise((res, rej) => {
+            let chunks: any[] = [];
+
+            output.on('data', chunk => chunks.push(Buffer.from(chunk)));
+            output.on('error', error => rej(error));
+            output.on('end', () => res(Buffer.concat(chunks).toString(this.options.encoding)));
+        });
+    }
+
+    /**
      * Reads the content of the file at the specified path.
      * @param path The path of the desired file.
      * @returns The promise that represents the asynchronous operation, containing the content of the file, if exists.
      */
     private async readFile(path: string): Promise<string> {
         try {
-            if (!this.options.requireExtension) {
-                const parsedPath = Path.parse(path);
-                const dirContent = await afs.readdir(parsedPath.dir);
+            const content = await afs.readFile(await this.normalizePath(path) ?? "", this.options.encoding);
 
-                const match = dirContent.find(base => base.startsWith(parsedPath.base));
-                if (! match)
-                    throw new Error();
-
-                parsedPath.base = match;
-                path = Path.format(parsedPath);
-            }
-
-            const content = await afs.readFile(path, { encoding: this.options.encoding });
             if (content instanceof Buffer)
                 return content.toString();
             else
@@ -345,7 +391,42 @@ class Importer {
         catch (error: any) {
             throw new PluginError(PLUGIN_NAME, `The path "${path}" doesn't exist!`);
         }
-    };
+    }
+
+    /**
+     * Returns a readable stream of the file at the specified path.
+     * @param path The path of the desired file.
+     * @returns The promise that represents the asynchronous operation, containing the readable stream of the file, if exists.
+     */
+    private async readStream(path: string) {
+        try {
+            return fs.createReadStream(await this.normalizePath(path) ?? "", this.options.encoding);
+        }
+        catch (error: any) {
+            throw new PluginError(PLUGIN_NAME, `The path "${path}" doesn't exist!`);
+        }
+    }
+
+    /**
+     * Normalizes the specified extensionless file path.
+     * @param path The path to be normalized.
+     * @returns The normalized version of the specified path.
+     */
+    private async normalizePath(path: string): Promise<string|null> {
+        if (!this.options.requireExtension) {
+            const parsedPath = Path.parse(path);
+            const dirContent = await afs.readdir(parsedPath.dir);
+
+            const match = dirContent.find(base => base.startsWith(parsedPath.base));
+            if (! match)
+                return null;
+
+            parsedPath.base = match;
+            path = Path.format(parsedPath);
+        }
+
+        return path;
+    }
 }
 
 export default Importer;

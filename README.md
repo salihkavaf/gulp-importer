@@ -37,6 +37,18 @@ gulp.task('import', () => {
 });
 ```
 
+### Dependency Transformation `New`
+Starting by version `1.5.0` the library supports alter pipelines for file dependencies.
+
+```js
+gulp.task('import', () => {
+    return gulp.src('*.js')
+        .pipe(importer.execute(src => src.pipe(uglifyJs())))
+        .pipe(gulp.dest('./dist'));
+```
+
+The dependency transformation only applies to the imported files.
+
 ### Updating Dependency
 Automatically execute imports for specific files when dependencies change. This saves you a lot of time from going through each file after a simple dependency change. So, we'll watch the resources that's supposed to be cached in the import step above. Why cached? Well, it's much faster to run the imports once and cache a dependency tree rather than looking up through a whole file tree, right?!
 
@@ -68,6 +80,7 @@ gulp.task("watch", () => {
 | disableLog | boolean | false | Disables the built-in log messages. |
 | detailedLog | boolean | false | Provides detailed log messages describing each step taken through the process. |
 | regexPattern | RegExp | /@{0,1}import\s+["']\s\*(.\*)\s\*["'];{0,1}/gi | The regular expression pattern is used to place the import statements. Note that the "(.\*)" part of the pattern is required, being pointing to the path.<br>For example, the regex for (hello <./path/here>) is (/hello\s+<(.\*)>/gi). |
+| regexGroup | number | 1 | The index of the capturing group that represents the file path.
 | importRecursively | boolean | false | The flag indicates whether to recursively resolve nested imports. Which means that dependencies can also have dependencies. |
 | requireExtension | boolean | true | The flag indicates whether to resolve extensionless files. So, instead of "./index.js", "./index" would do just fine. |
 

@@ -4,6 +4,8 @@ import File     from 'vinyl'
 import fs       from 'fs'
 import es       from 'event-stream'
 import Path     from 'path'
+import through  from 'through2';
+import { Transform } from 'stream'
 
 const libFile  = "test/res/lib.txt";
 const testFile = "test/res/src.txt";
@@ -65,8 +67,8 @@ describe("gulp-importer", () => {
         });
     }
 
-    it("should work in stream mode", done => resolveStream(testFile, expected, done));
-    it("should work in buffer mode", done => resolveBuffer(testFile, expected, done));
+    it("Should work in stream mode", done => resolveStream(testFile, expected, done));
+    it("Should work in buffer mode", done => resolveBuffer(testFile, expected, done));
 
     it("importOnce option should work", done => {
         const content = '@import "./lib.txt"\r\n' +
@@ -90,7 +92,7 @@ describe("gulp-importer", () => {
         });
     });
 
-    it("should cache dependency destinations", done => {
+    it("Should cache dependency destinations", done => {
         const path   = Path.resolve(libFile);
         const base64 = Buffer.from(path).toString("base64");
 
@@ -149,5 +151,59 @@ describe("gulp-importer", () => {
     it("Should recursively update dependency in stream mode", done => resolveStream(recTestFile, recExpected, done));
     it("Should recursively update dependency in buffer mode", done => resolveBuffer(recTestFile, recExpected, done));
 
-    it("should work without file extension", done => resolveStream(noExtFile, recExpected, done));
+    it("Should work without file extension", done => resolveStream(noExtFile, recExpected, done));
+
+    const dependencyTransformer = (src: NodeJS.ReadableStream) => src.pipe(through.obj(function (chunk, _, cb)
+    {
+        const content = Buffer.from(chunk, 'utf-8').toString();
+        this.push(content.toUpperCase());
+        cb();
+    }));
+
+    it("Should transform dependency in stream mode", done => {
+        const stream = fs.createReadStream(testFile, {
+            encoding: "utf-8"
+        });
+
+        const file = new File({
+            contents: stream,
+            path: stream.path as string
+        });
+
+        const imp = importer.execute(dependencyTransformer);
+
+        imp.write(file);
+        imp.once("data", file => {
+            assert(file.isStream(), "The output is not stream!");
+
+            file.contents.pipe(es.wait(function (err: any, data: any) {
+                const result = data.toString().split('\r\n')[0];
+                const expctd = expected.split('\r\n')[0].toUpperCase();
+
+                assert.equal(result, expctd, "Unexpected stream output!");
+                done();
+            }));
+        });
+    });
+
+    it("Should transform dependency in buffer mode", done => {
+        const buff = fs.readFileSync(testFile);
+        const file = new File({
+            contents: buff,
+            path: testFile
+        });
+
+        const imp = importer.execute(dependencyTransformer);
+
+        imp.write(file);
+        imp.once("data", file => {
+            assert(file.isBuffer(), "The output is not buffer!");
+
+            const result = file.contents.toString('utf-8').split('\r\n')[0];
+            const expctd = expected.split('\r\n')[0].toUpperCase();
+
+            assert.equal(result, expctd, "Unexpected stream output!");
+            done();
+        });
+    });
 });
