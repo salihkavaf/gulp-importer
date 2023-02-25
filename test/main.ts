@@ -153,12 +153,19 @@ describe("gulp-importer", () => {
 
     it("Should work without file extension", done => resolveStream(noExtFile, recExpected, done));
 
-    const dependencyTransformer = (src: NodeJS.ReadableStream) => src.pipe(through.obj(function (chunk, _, cb)
-    {
-        const content = Buffer.from(chunk, 'utf-8').toString();
-        this.push(content.toUpperCase());
-        cb();
-    }));
+    function dependencyTransformer(src: NodeJS.ReadWriteStream) {
+        return src.pipe(through.obj(function (file: File, _, cb) {
+            try {
+                if (!file.isNull()) {
+                    const content = (file.contents as Buffer).toString().toUpperCase();
+                    this.push(Buffer.from(content));
+                }
+                cb();
+            } catch (error) {
+                cb(error);
+            }
+        }));
+    }
 
     it("Should transform dependency in stream mode", done => {
         const stream = fs.createReadStream(testFile, {

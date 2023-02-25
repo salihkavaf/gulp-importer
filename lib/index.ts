@@ -3,15 +3,16 @@ import through     from 'through2';
 import Path        from 'path';
 import fs          from 'fs';
 import File        from 'vinyl';
-import log         from 'fancy-log'
+import vfs         from 'vinyl-fs';
+import log         from 'fancy-log';
 
 import { promises as afs } from 'fs'
-import { Transform, TransformCallback, Readable } from 'stream';
+import { Transform, TransformCallback } from 'stream';
 
 //---- End of imports ---------------------
 
 type FileCache  = Record<string, Record<string, File>>
-type Transformation = (src: NodeJS.ReadableStream) => Transform; // Pipeline action type.
+type Transformation = (src: NodeJS.ReadWriteStream) => Transform; // Pipeline action type.
 
 interface ImporterOptions {
     [key: string]: any;
@@ -79,7 +80,7 @@ class Importer {
      */
     execute(innerPl?: Transformation): Transform {
         const that = this;
-        return through.obj(async function (file, enc, cb) {
+        return through.obj(async function (file, _enc, cb) {
             if (!that.validate(this, file, cb))
                 return;
 
@@ -351,26 +352,29 @@ class Importer {
      * @returns The promise that represents the asynchronous operation, containing the processed dependency content.
      */
     private async getDependencyContent(path: string, transformation?: Transformation): Promise<string> {
-        return !!transformation
-            ? await this.transform(await this.readStream(path), transformation)
-            : await this.readFile(path);
+        if (!!transformation) {
+            return await this.transform(path, transformation);
+        }
+        else return await this.readFile(path);
     }
 
     /**
-     * Executes the specified transformation for the given input stream.
-     * @param input The input stream to initiate the pipeline.
+     * Executes the specified transformation for the given input file.
+     * @param path The path of the file to initiate the pipeline.
      * @param transformation The action for building the transformation pipeline.
      * @returns The content that's returned by the transformation operation.
      */
-    private transform(input: NodeJS.ReadableStream, transformation: Transformation): Promise<string> {
-        const output = transformation(input);
-
+    private transform(path: string, transformation: Transformation): Promise<string> {
         return new Promise((res, rej) => {
             let chunks: any[] = [];
 
-            output.on('data', chunk => chunks.push(Buffer.from(chunk)));
-            output.on('error', error => rej(error));
-            output.on('end', () => res(Buffer.concat(chunks).toString(this.options.encoding)));
+            transformation(vfs.src(path))
+                .on('error', error => rej(error))
+                .on('data', chunk => chunks.push(chunk))
+                .on('end', () => {
+                    const result = Buffer.concat(chunks).toString(this.options.encoding);
+                    res(result);
+                });
         });
     }
 
