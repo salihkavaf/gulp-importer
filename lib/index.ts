@@ -353,7 +353,7 @@ class Importer {
      */
     private async getDependencyContent(path: string, transformation?: Transformation): Promise<string> {
         if (!!transformation) {
-            return await this.transform(path, transformation);
+            return await this.transform(path, transformation) ?? "";
         }
         else return await this.readFile(path);
     }
@@ -364,17 +364,34 @@ class Importer {
      * @param transformation The action for building the transformation pipeline.
      * @returns The content that's returned by the transformation operation.
      */
-    private transform(path: string, transformation: Transformation): Promise<string> {
+    private transform(path: string, transformation: Transformation): Promise<string|null> {
         return new Promise((res, rej) => {
-            let chunks: any[] = [];
+            const that = this;
 
             transformation(vfs.src(path))
-                .on('error', error => rej(error))
-                .on('data', chunk => chunks.push(chunk))
-                .on('end', () => {
-                    const result = Buffer.concat(chunks).toString(this.options.encoding);
-                    res(result);
-                });
+                .pipe(through.obj(function (file: File, _, callback)
+                {
+                    if (file.isNull()) {
+                        res(null);
+                        return;
+                    }
+                    else if (file.isBuffer()) {
+                        res(file.contents.toString(that.options.encoding));
+                    }
+                    else if (file.isStream()) {
+                        let chunks: any[] = [];
+
+                        file.contents
+                            .on('error', error => rej(error))
+                            .on('data', chunk => chunks.push(chunk))
+                            .on('end', () => {
+                                const result = Buffer.concat(chunks).toString(that.options.encoding);
+                                res(result);
+                            });
+                    }
+
+                    callback();
+                }));
         });
     }
 

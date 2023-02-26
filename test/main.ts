@@ -5,7 +5,6 @@ import fs       from 'fs'
 import es       from 'event-stream'
 import Path     from 'path'
 import through  from 'through2';
-import { Transform } from 'stream'
 
 const libFile  = "test/res/lib.txt";
 const testFile = "test/res/src.txt";
@@ -158,10 +157,13 @@ describe("gulp-importer", () => {
             try {
                 if (!file.isNull()) {
                     const content = (file.contents as Buffer).toString().toUpperCase();
-                    this.push(Buffer.from(content));
+                    file.contents = Buffer.from(content);
+
+                    this.push(file);
                 }
                 cb();
-            } catch (error) {
+            }
+            catch (error) {
                 cb(error);
             }
         }));
